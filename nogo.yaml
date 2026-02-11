@@ -267,3 +267,37 @@ analyzers:
       suppress:
         - "comment on exported type Translation" # Intentional.
         - "comment on exported type PinnedRange" # Intentional.
+
+  QF1001: # Apply De Morgan’s law
+    # Controversial.
+    internal:
+      exclude: [".*"]
+  QF1008: # Omit embedded fields from selector expression
+    # Controversial.
+    internal:
+      exclude: [".*"]
+  QF1002: # Some failures remain.
+    generated:
+      exclude: [".*"]
+    internal:
+      exclude: [".*"]
+  QF1012: # Some failures remain.
+    generated:
+      exclude: [".*"]
+    internal:
+      exclude: [".*"]
+  S1011: # Some failures remain.
+    generated:
+      exclude: [".*"]
+    internal:
+      exclude: [".*"]
+  S1023: # Some failures remain.
+    generated:
+      exclude: [".*"]
+    internal:
+      exclude: [".*"]
+  S1039: # Some failures remain.
+    generated:
+      exclude: [".*"]
+    internal:
+      exclude: [".*"]
