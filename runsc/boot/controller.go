@@ -1126,9 +1126,11 @@ func (cm *containerManager) SetDeterministicSeed(args *SetDeterministicSeedArgs,
 }
 
 // ResetFilesystem resets the sandbox filesystem to its initial state.
+// Currently a no-op stub. Filesystem reset between executions is handled
+// by bh-init (the in-sandbox init process) via its snapshot/restore
+// mechanism. Sentry-level filesystem reset (e.g. overlay layer rollback)
+// is deferred to Phase 2.
 func (cm *containerManager) ResetFilesystem(_ *struct{}, _ *struct{}) error {
-	log.Debugf("containerManager.ResetFilesystem")
-	// TODO: Implement filesystem reset for persistent sandbox re-execution.
-	// This will involve resetting overlay layers or re-mounting.
+	log.Debugf("containerManager.ResetFilesystem: no-op (fs reset handled by bh-init)")
 	return nil
 }
