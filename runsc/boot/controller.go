@@ -1117,6 +1117,7 @@ func (cm *containerManager) SetDeterministicSeed(args *SetDeterministicSeedArgs,
 
 	// Reset RNG with new process seed.
 	pkgrand.SetDeterministicRNG(args.Process)
+	pkgrand.SetDeterministicMathRand(args.Process)
 
 	// Sync SyntheticClocks.
 	k.FireExpiredTimers()

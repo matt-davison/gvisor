@@ -95,6 +95,62 @@ func TestDeterministicRNGConcurrent(t *testing.T) {
 	wg.Wait()
 }
 
+func TestSetDeterministicMathRand(t *testing.T) {
+	SetDeterministicMathRand(42)
+	defer func() {
+		detMathRandMu.Lock()
+		detMathRand = nil
+		detMathRandMu.Unlock()
+	}()
+
+	// Same seed must produce same sequence.
+	vals1 := make([]int64, 10)
+	for i := range vals1 {
+		vals1[i] = MathRandInt63n(1000000)
+	}
+
+	SetDeterministicMathRand(42)
+	vals2 := make([]int64, 10)
+	for i := range vals2 {
+		vals2[i] = MathRandInt63n(1000000)
+	}
+
+	for i := range vals1 {
+		if vals1[i] != vals2[i] {
+			t.Errorf("MathRandInt63n: index %d: got %d, want %d", i, vals2[i], vals1[i])
+		}
+	}
+
+	// Different seed must produce different sequence.
+	SetDeterministicMathRand(99)
+	vals3 := make([]int64, 10)
+	for i := range vals3 {
+		vals3[i] = MathRandInt63n(1000000)
+	}
+	same := true
+	for i := range vals1 {
+		if vals1[i] != vals3[i] {
+			same = false
+			break
+		}
+	}
+	if same {
+		t.Error("different seeds produced same MathRandInt63n sequence")
+	}
+}
+
+func TestMathRandFallback(t *testing.T) {
+	// When detMathRand is nil, functions should not panic.
+	detMathRandMu.Lock()
+	detMathRand = nil
+	detMathRandMu.Unlock()
+
+	_ = MathRandInt63n(100)
+	_ = MathRandUint32()
+	_ = MathRandIntn(100)
+	_ = MathRandFloat64()
+}
+
 func TestDeterministicRNGFillsBuffer(t *testing.T) {
 	rng := NewDeterministicRNG(42)
 

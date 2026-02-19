@@ -16,6 +16,7 @@ package rand
 
 import (
 	"encoding/binary"
+	mrand "math/rand"
 	"sync"
 
 	"golang.org/x/crypto/chacha20"
@@ -73,4 +74,82 @@ func (d *DeterministicRNG) Reset(seed uint64) {
 // SetDeterministicRNG replaces the global Reader with a DeterministicRNG.
 func SetDeterministicRNG(seed uint64) {
 	Reader = NewDeterministicRNG(seed)
+}
+
+// detMathRand is a deterministic replacement for the math/rand global source.
+// When non-nil, MathRandXxx functions use this instead of the auto-seeded global.
+var detMathRand *mrand.Rand
+var detMathRandMu sync.Mutex
+
+// chacha20Source adapts DeterministicRNG as a math/rand.Source64.
+type chacha20Source struct {
+	rng *DeterministicRNG
+}
+
+func (s *chacha20Source) Int63() int64 {
+	return int64(s.Uint64() & 0x7fffffffffffffff)
+}
+
+func (s *chacha20Source) Uint64() uint64 {
+	var buf [8]byte
+	s.rng.Read(buf[:])
+	return binary.LittleEndian.Uint64(buf[:])
+}
+
+func (s *chacha20Source) Seed(seed int64) {
+	s.rng.Reset(uint64(seed))
+}
+
+// SetDeterministicMathRand replaces the math/rand global functions with a
+// deterministic source backed by ChaCha20. This is separate from
+// SetDeterministicRNG (which replaces crypto/rand-style Reader).
+func SetDeterministicMathRand(seed uint64) {
+	detMathRandMu.Lock()
+	defer detMathRandMu.Unlock()
+	src := &chacha20Source{rng: NewDeterministicRNG(seed)}
+	detMathRand = mrand.New(src)
+}
+
+// MathRandInt63n returns a deterministic int64 in [0, n) when in deterministic
+// mode, otherwise falls back to math/rand.Int63n.
+func MathRandInt63n(n int64) int64 {
+	detMathRandMu.Lock()
+	defer detMathRandMu.Unlock()
+	if detMathRand != nil {
+		return detMathRand.Int63n(n)
+	}
+	return mrand.Int63n(n)
+}
+
+// MathRandUint32 returns a deterministic uint32 when in deterministic mode,
+// otherwise falls back to math/rand.Uint32.
+func MathRandUint32() uint32 {
+	detMathRandMu.Lock()
+	defer detMathRandMu.Unlock()
+	if detMathRand != nil {
+		return detMathRand.Uint32()
+	}
+	return mrand.Uint32()
+}
+
+// MathRandIntn returns a deterministic int in [0, n) when in deterministic
+// mode, otherwise falls back to math/rand.Intn.
+func MathRandIntn(n int) int {
+	detMathRandMu.Lock()
+	defer detMathRandMu.Unlock()
+	if detMathRand != nil {
+		return detMathRand.Intn(n)
+	}
+	return mrand.Intn(n)
+}
+
+// MathRandFloat64 returns a deterministic float64 in [0.0, 1.0) when in
+// deterministic mode, otherwise falls back to math/rand.Float64.
+func MathRandFloat64() float64 {
+	detMathRandMu.Lock()
+	defer detMathRandMu.Unlock()
+	if detMathRand != nil {
+		return detMathRand.Float64()
+	}
+	return mrand.Float64()
 }

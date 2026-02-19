@@ -16,8 +16,8 @@ package kernel
 
 import (
 	"fmt"
-	"math/rand"
 
+	"gvisor.dev/gvisor/pkg/rand"
 	"gvisor.dev/gvisor/pkg/sync"
 )
 
@@ -89,7 +89,7 @@ func (s *syslog) Log() []byte {
 	}
 
 	selectMessage := func() string {
-		i := rand.Intn(len(allMessages))
+		i := rand.MathRandIntn(len(allMessages))
 		m := allMessages[i]
 
 		// Delete the selected message.
@@ -105,11 +105,11 @@ func (s *syslog) Log() []byte {
 
 	time := 0.1
 	for i := 0; i < 10; i++ {
-		time += rand.Float64() / 2
+		time += rand.MathRandFloat64() / 2
 		s.msg = append(s.msg, []byte(fmt.Sprintf(format, time, selectMessage()))...)
 	}
 
-	time += rand.Float64() / 2
+	time += rand.MathRandFloat64() / 2
 	s.msg = append(s.msg, []byte(fmt.Sprintf(format, time, "Ready!"))...)
 
 	// Return a copy.

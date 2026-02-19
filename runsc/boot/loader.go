@@ -644,6 +644,7 @@ func New(args Args) (*Loader, error) {
 
 		// Replace global RNG with deterministic one.
 		rand.SetDeterministicRNG(processSeed)
+		rand.SetDeterministicMathRand(processSeed)
 
 		log.Infof("Deterministic mode enabled: master=%d quantum=%dns", masterSeed, args.Conf.DetQuantum)
 	}

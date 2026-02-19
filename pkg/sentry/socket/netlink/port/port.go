@@ -23,8 +23,8 @@ package port
 import (
 	"fmt"
 	"math"
-	"math/rand"
 
+	"gvisor.dev/gvisor/pkg/rand"
 	"gvisor.dev/gvisor/pkg/sync"
 )
 
@@ -77,7 +77,7 @@ func (m *Manager) Allocate(protocol int, hint int32) (int32, bool) {
 	// Search for any free port in [math.MinInt32, -4096). The positive
 	// port space is left open for pid-based allocations. This behavior is
 	// consistent with Linux.
-	start := int32(math.MinInt32 + rand.Int63n(math.MaxInt32-4096+1))
+	start := int32(math.MinInt32 + rand.MathRandInt63n(math.MaxInt32-4096+1))
 	curr := start
 	for {
 		if _, ok := proto[curr]; !ok {

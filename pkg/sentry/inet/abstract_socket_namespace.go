@@ -16,9 +16,9 @@ package inet
 
 import (
 	"fmt"
-	"math/rand"
 
 	"gvisor.dev/gvisor/pkg/context"
+	"gvisor.dev/gvisor/pkg/rand"
 	"gvisor.dev/gvisor/pkg/refs"
 	"gvisor.dev/gvisor/pkg/sentry/socket/unix/transport"
 	"gvisor.dev/gvisor/pkg/syserr"
@@ -94,7 +94,7 @@ func (a *AbstractSocketNamespace) Bind(ctx context.Context, path string, ep tran
 	if path == "" {
 		// Autobind feature.
 		mask := uint32(0xFFFFF)
-		r := rand.Uint32()
+		r := rand.MathRandUint32()
 		for i := uint32(0); i <= mask; i++ {
 			p := fmt.Sprintf("X%05x", (r+i)&mask)
 			if _, ok := a.endpoints[p[1:]]; ok {
