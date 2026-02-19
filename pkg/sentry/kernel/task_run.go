@@ -75,6 +75,13 @@ func (t *Task) run(threadID uintptr) {
 	t.interruptSelf()
 
 	for {
+		// Deterministic scheduling: acquire the scheduling token.
+		if t.k.Deterministic() {
+			if ds := t.k.DetScheduler(); ds != nil {
+				ds.Acquire(t)
+			}
+		}
+
 		// Explanation for this ordering:
 		//
 		//	- A freshly-started task that is stopped should not do anything
@@ -87,7 +94,22 @@ func (t *Task) run(threadID uintptr) {
 		//		ordering is safe.
 		t.doStop()
 		t.runState = t.runState.execute(t)
+
+		// Deterministic scheduling: release the scheduling token.
+		if t.k.Deterministic() {
+			if ds := t.k.DetScheduler(); ds != nil {
+				ds.Release(t)
+			}
+		}
+
 		if t.runState == nil {
+			// Unregister from deterministic scheduler on exit.
+			if t.k.Deterministic() {
+				if ds := t.k.DetScheduler(); ds != nil {
+					ds.Unregister(t)
+				}
+			}
+
 			t.accountTaskGoroutineEnter(TaskGoroutineNonexistent)
 			t.goroutineStopped.Done()
 			t.tg.liveGoroutines.Done()

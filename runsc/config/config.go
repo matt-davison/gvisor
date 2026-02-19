@@ -206,6 +206,30 @@ type Config struct {
 	// sent to log if false.
 	StraceEvent bool `flag:"strace-event"`
 
+	// Deterministic enables deterministic execution mode.
+	Deterministic bool `flag:"deterministic"`
+
+	// DetSeedMaster is the master seed for deterministic execution.
+	DetSeedMaster uint64 `flag:"det-seed-master"`
+
+	// DetSeedProcess is the process sub-seed (derived from master if 0).
+	DetSeedProcess uint64 `flag:"det-seed-process"`
+
+	// DetSeedScheduling is the scheduling sub-seed (derived from master if 0).
+	DetSeedScheduling uint64 `flag:"det-seed-scheduling"`
+
+	// DetSeedInput is the input sub-seed (derived from master if 0).
+	DetSeedInput uint64 `flag:"det-seed-input"`
+
+	// DetQuantum is the virtual time quantum in nanoseconds (default 10ms).
+	DetQuantum uint64 `flag:"det-quantum"`
+
+	// DetTimeLimit is the maximum virtual time in nanoseconds (0 = unlimited).
+	DetTimeLimit uint64 `flag:"det-time-limit"`
+
+	// DetTraceOutput is the path for the binary trace output file.
+	DetTraceOutput string `flag:"det-trace-output"`
+
 	// DisableSeccomp indicates whether seccomp syscall filters should be
 	// disabled. Pardon the double negation, but default to enabled is important.
 	DisableSeccomp bool

@@ -412,6 +412,13 @@ func (t *Task) Start(tid ThreadID) {
 	// Task is now running in system mode.
 	t.accountTaskGoroutineLeave(TaskGoroutineNonexistent)
 
+	// Register with deterministic scheduler before starting goroutine.
+	if t.k.Deterministic() {
+		if ds := t.k.DetScheduler(); ds != nil {
+			ds.Register(t)
+		}
+	}
+
 	// Use the task's TID in the root PID namespace to make it visible in stack dumps.
 	go t.run(uintptr(tid)) // S/R-SAFE: synchronizes with saving through stops
 }

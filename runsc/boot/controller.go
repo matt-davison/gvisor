@@ -31,6 +31,7 @@ import (
 	"gvisor.dev/gvisor/pkg/fd"
 	"gvisor.dev/gvisor/pkg/fspath"
 	"gvisor.dev/gvisor/pkg/log"
+	pkgrand "gvisor.dev/gvisor/pkg/rand"
 	"gvisor.dev/gvisor/pkg/sentry/control"
 	"gvisor.dev/gvisor/pkg/sentry/fsimpl/erofs"
 	"gvisor.dev/gvisor/pkg/sentry/kernel"
@@ -127,6 +128,12 @@ const (
 
 	// ContMgrContainerRuntimeState returns the runtime state of a container.
 	ContMgrContainerRuntimeState = "containerManager.ContainerRuntimeState"
+
+	// ContMgrSetDeterministicSeed sets deterministic execution seeds.
+	ContMgrSetDeterministicSeed = "containerManager.SetDeterministicSeed"
+
+	// ContMgrResetFilesystem resets the sandbox filesystem.
+	ContMgrResetFilesystem = "containerManager.ResetFilesystem"
 )
 
 const (
@@ -1077,5 +1084,50 @@ func (cm *containerManager) GetSavings(_ *struct{}, s *Savings) error {
 	cm.l.mu.Lock()
 	*s = cm.l.savings
 	cm.l.mu.Unlock()
+	return nil
+}
+
+// SetDeterministicSeedArgs are the arguments for SetDeterministicSeed.
+type SetDeterministicSeedArgs struct {
+	Master     uint64
+	Process    uint64
+	Scheduling uint64
+	Input      uint64
+}
+
+// SetDeterministicSeed resets the deterministic execution state with new seeds.
+// This is called between executions to set up a new deterministic run.
+func (cm *containerManager) SetDeterministicSeed(args *SetDeterministicSeedArgs, _ *struct{}) error {
+	log.Debugf("containerManager.SetDeterministicSeed: master=%d", args.Master)
+
+	k := cm.l.k
+	if !k.Deterministic() {
+		return fmt.Errorf("sandbox is not in deterministic mode")
+	}
+
+	// Reset deterministic clocks.
+	if dc := k.DeterministicClocks(); dc != nil {
+		dc.Reset()
+	}
+
+	// Reset deterministic scheduler with new scheduling seed.
+	if ds := k.DetScheduler(); ds != nil {
+		ds.Reset(args.Scheduling)
+	}
+
+	// Reset RNG with new process seed.
+	pkgrand.SetDeterministicRNG(args.Process)
+
+	// Sync SyntheticClocks.
+	k.FireExpiredTimers()
+
+	return nil
+}
+
+// ResetFilesystem resets the sandbox filesystem to its initial state.
+func (cm *containerManager) ResetFilesystem(_ *struct{}, _ *struct{}) error {
+	log.Debugf("containerManager.ResetFilesystem")
+	// TODO: Implement filesystem reset for persistent sandbox re-execution.
+	// This will involve resetting overlay layers or re-mounting.
 	return nil
 }

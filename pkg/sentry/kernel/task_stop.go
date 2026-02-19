@@ -63,6 +63,7 @@ package kernel
 
 import (
 	"fmt"
+	"sort"
 )
 
 // A TaskStop is a condition visible to the task control flow graph that
@@ -197,7 +198,7 @@ func (ts *TaskSet) BeginExternalStop() {
 	if ts.Root == nil {
 		return
 	}
-	for t := range ts.Root.tids {
+	for _, t := range ts.sortedTasks() {
 		t.tg.signalHandlers.mu.Lock()
 		t.beginStopLocked()
 		t.tg.signalHandlers.mu.Unlock()
@@ -214,7 +215,7 @@ func (ts *TaskSet) PullFullState() {
 	if ts.Root == nil {
 		return
 	}
-	for t := range ts.Root.tids {
+	for _, t := range ts.sortedTasks() {
 		if mm := t.MemoryManager(); mm != nil {
 			t.p.PullFullState(t.MemoryManager().AddressSpace(), t.Arch())
 		}
@@ -234,7 +235,7 @@ func (ts *TaskSet) EndExternalStop() {
 	if ts.Root == nil {
 		return
 	}
-	for t := range ts.Root.tids {
+	for _, t := range ts.sortedTasks() {
 		t.tg.signalHandlers.mu.Lock()
 		t.endStopLocked()
 		t.tg.signalHandlers.mu.Unlock()
@@ -247,4 +248,19 @@ func (ts *TaskSet) isExternallyStopped() bool {
 	ts.mu.Lock()
 	defer ts.mu.Unlock()
 	return ts.stopCount > 0
+}
+
+// sortedTasks returns tasks sorted by TID for deterministic iteration.
+func (ts *TaskSet) sortedTasks() []*Task {
+	if ts.Root == nil {
+		return nil
+	}
+	tasks := make([]*Task, 0, len(ts.Root.tids))
+	for t := range ts.Root.tids {
+		tasks = append(tasks, t)
+	}
+	sort.Slice(tasks, func(i, j int) bool {
+		return ts.Root.tids[tasks[i]] < ts.Root.tids[tasks[j]]
+	})
+	return tasks
 }

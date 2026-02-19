@@ -50,6 +50,7 @@ import (
 	"gvisor.dev/gvisor/pkg/sentry/inet"
 	"gvisor.dev/gvisor/pkg/sentry/kernel"
 	"gvisor.dev/gvisor/pkg/sentry/kernel/auth"
+	"gvisor.dev/gvisor/pkg/sentry/ktime"
 	"gvisor.dev/gvisor/pkg/sentry/loader"
 	"gvisor.dev/gvisor/pkg/sentry/pgalloc"
 	"gvisor.dev/gvisor/pkg/sentry/platform"
@@ -611,6 +612,41 @@ func New(args Args) (*Loader, error) {
 	tk := kernel.NewTimekeeper()
 	params := kernel.NewVDSOParamPage(l.k.MemoryFile(), vdso.ParamPage.FileRange())
 	tk.SetClocks(time.NewCalibratedClocks(), params)
+
+	// Deterministic mode setup.
+	if args.Conf.Deterministic {
+		detClocks := time.NewDeterministicClocks(time.DeterministicClocksOpts{
+			Quantum: int64(args.Conf.DetQuantum),
+		})
+		if args.Conf.DetTimeLimit > 0 {
+			detClocks.SetLimit(int64(args.Conf.DetTimeLimit))
+		}
+		// Override the calibrated clocks with deterministic ones.
+		// The VDSOParamPage will have ready=false since Update() returns false.
+		tk.SetClocks(detClocks, params)
+		l.k.SetDeterministicClocks(detClocks)
+		l.k.SetDeterministic(true)
+
+		// Create SyntheticClocks for monotonic and realtime.
+		detMono := &ktime.SyntheticClock{}
+		detReal := &ktime.SyntheticClock{}
+		l.k.SetDetMonotonicClock(detMono)
+		l.k.SetDetRealtimeClock(detReal)
+
+		// Derive sub-seeds from master seed.
+		masterSeed := args.Conf.DetSeedMaster
+		processSeed := kernel.DeriveSeed(masterSeed, "process")
+		schedulingSeed := kernel.DeriveSeed(masterSeed, "scheduling")
+
+		// Create deterministic scheduler.
+		detSched := kernel.NewDetScheduler(schedulingSeed, detClocks)
+		l.k.SetDetScheduler(detSched)
+
+		// Replace global RNG with deterministic one.
+		rand.SetDeterministicRNG(processSeed)
+
+		log.Infof("Deterministic mode enabled: master=%d quantum=%dns", masterSeed, args.Conf.DetQuantum)
+	}
 
 	if err := enableStrace(args.Conf); err != nil {
 		return nil, fmt.Errorf("enabling strace: %w", err)

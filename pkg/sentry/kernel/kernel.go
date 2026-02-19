@@ -399,6 +399,23 @@ type Kernel struct {
 
 	// MaxKeySetSize is the maximum number of keys in a key set.
 	MaxKeySetSize atomicbitops.Int32
+
+	// deterministic indicates this kernel runs in deterministic mode.
+	deterministic bool
+
+	// detScheduler controls deterministic task scheduling.
+	// Only used when deterministic is true.
+	detScheduler *DetScheduler `state:"nosave"`
+
+	// detClocks provides deterministic time sources.
+	// Only used when deterministic is true.
+	detClocks *sentrytime.DeterministicClocks `state:"nosave"`
+
+	// detMonotonicClock is a SyntheticClock driven by detClocks for monotonic time.
+	detMonotonicClock *ktime.SyntheticClock `state:"nosave"`
+
+	// detRealtimeClock is a SyntheticClock driven by detClocks for realtime.
+	detRealtimeClock *ktime.SyntheticClock `state:"nosave"`
 }
 
 // InitKernelArgs holds arguments to Init.
@@ -2210,4 +2227,69 @@ func (k *Kernel) ContainerName(cid string) string {
 	k.extMu.Lock()
 	defer k.extMu.Unlock()
 	return k.containerNames[cid]
+}
+
+// Deterministic returns true if the kernel is in deterministic mode.
+func (k *Kernel) Deterministic() bool {
+	return k.deterministic
+}
+
+// SetDeterministic enables deterministic mode.
+func (k *Kernel) SetDeterministic(v bool) {
+	k.deterministic = v
+}
+
+// DetScheduler returns the deterministic scheduler, or nil.
+func (k *Kernel) DetScheduler() *DetScheduler {
+	return k.detScheduler
+}
+
+// SetDetScheduler sets the deterministic scheduler.
+func (k *Kernel) SetDetScheduler(ds *DetScheduler) {
+	k.detScheduler = ds
+}
+
+// DeterministicClocks returns the deterministic clocks, or nil.
+func (k *Kernel) DeterministicClocks() *sentrytime.DeterministicClocks {
+	return k.detClocks
+}
+
+// SetDeterministicClocks sets the deterministic clocks.
+func (k *Kernel) SetDeterministicClocks(dc *sentrytime.DeterministicClocks) {
+	k.detClocks = dc
+}
+
+// DetMonotonicClock returns the deterministic monotonic SyntheticClock, or nil.
+func (k *Kernel) DetMonotonicClock() *ktime.SyntheticClock {
+	return k.detMonotonicClock
+}
+
+// SetDetMonotonicClock sets the deterministic monotonic clock.
+func (k *Kernel) SetDetMonotonicClock(c *ktime.SyntheticClock) {
+	k.detMonotonicClock = c
+}
+
+// DetRealtimeClock returns the deterministic realtime SyntheticClock, or nil.
+func (k *Kernel) DetRealtimeClock() *ktime.SyntheticClock {
+	return k.detRealtimeClock
+}
+
+// SetDetRealtimeClock sets the deterministic realtime clock.
+func (k *Kernel) SetDetRealtimeClock(c *ktime.SyntheticClock) {
+	k.detRealtimeClock = c
+}
+
+// FireExpiredTimers advances deterministic time and fires any expired SyntheticTimers.
+// Called by the DetScheduler on each Release.
+func (k *Kernel) FireExpiredTimers() {
+	if k.detClocks == nil {
+		return
+	}
+	mono, real := k.detClocks.Now()
+	if k.detMonotonicClock != nil {
+		k.detMonotonicClock.Store(ktime.FromNanoseconds(mono))
+	}
+	if k.detRealtimeClock != nil {
+		k.detRealtimeClock.Store(ktime.FromNanoseconds(real))
+	}
 }

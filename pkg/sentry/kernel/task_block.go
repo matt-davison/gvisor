@@ -174,6 +174,38 @@ func (t *Task) block(C <-chan struct{}, timerChan <-chan struct{}) error {
 	default:
 	}
 
+	// Deterministic blocking path.
+	if t.k.Deterministic() {
+		if ds := t.k.DetScheduler(); ds != nil {
+			// Tell scheduler we're blocked.
+			ds.MarkBlocked(t)
+			// Release scheduling token while blocked.
+			ds.Release(t)
+
+			t.prepareSleep()
+
+			// Wait for either the event or interrupt.
+			select {
+			case <-C:
+				t.completeSleep()
+				ds.MarkRunnable(t)
+				ds.Acquire(t)
+				return nil
+			case <-t.interruptChan:
+				t.interruptSelf()
+				t.completeSleep()
+				ds.MarkRunnable(t)
+				ds.Acquire(t)
+				return linuxerr.ErrInterrupted
+			case <-timerChan:
+				t.completeSleep()
+				ds.MarkRunnable(t)
+				ds.Acquire(t)
+				return linuxerr.ETIMEDOUT
+			}
+		}
+	}
+
 	// Deactivate our address space, we don't need it.
 	t.prepareSleep()
 	defer t.completeSleep()

@@ -88,6 +88,16 @@ func RegisterFlags(flagSet *flag.FlagSet) {
 	flagSet.Uint(flagStraceLogSize, 1024, "default size (in bytes) to log data argument blobs.")
 	flagSet.Bool("strace-event", false, "send strace to event.")
 
+	// Deterministic execution flags.
+	flagSet.Bool("deterministic", false, "enable deterministic execution mode for reproducible bug hunting.")
+	flagSet.Uint64("det-seed-master", 0, "master seed for deterministic execution.")
+	flagSet.Uint64("det-seed-process", 0, "process sub-seed (derived from master if 0).")
+	flagSet.Uint64("det-seed-scheduling", 0, "scheduling sub-seed (derived from master if 0).")
+	flagSet.Uint64("det-seed-input", 0, "input sub-seed (derived from master if 0).")
+	flagSet.Uint64("det-quantum", 10000000, "virtual time quantum in nanoseconds (default 10ms).")
+	flagSet.Uint64("det-time-limit", 0, "maximum virtual time in nanoseconds (0 = unlimited).")
+	flagSet.String("det-trace-output", "", "path for binary trace output file.")
+
 	// Flags that control sandbox runtime behavior.
 	flagSet.String("platform", "systrap", "specifies which platform to use: systrap (default), ptrace, kvm.")
 	flagSet.String("platform_device_path", "", "path to a platform-specific device file (e.g. /dev/kvm for KVM platform). If unset, will use a sane platform-specific default.")
